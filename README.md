@@ -6,19 +6,18 @@
 [4]: https://github.com/zhaojh329/rtty/pulls
 [5]: https://img.shields.io/badge/Issues-welcome-brightgreen.svg?style=plastic
 [6]: https://github.com/zhaojh329/rtty/issues/new
-[7]: https://img.shields.io/badge/release-7.1.3-blue.svg?style=plastic
+[7]: https://img.shields.io/badge/release-7.2.1-blue.svg?style=plastic
 [8]: https://github.com/zhaojh329/rtty/releases
-[9]: https://travis-ci.org/zhaojh329/rtty.svg?branch=master
-[10]: https://travis-ci.org/zhaojh329/rtty
-[11]: https://img.shields.io/badge/Support%20rtty-Donate-blueviolet.svg
-[12]: https://gitee.com/zhaojh329/rtty#project-donate-overview
+[9]: https://github.com/zhaojh329/rtty/workflows/build/badge.svg
+[10]: https://img.shields.io/badge/Support%20rtty-Donate-blueviolet.svg
+[11]: https://paypal.me/zjh329
 
 [![license][1]][2]
 [![PRs Welcome][3]][4]
 [![Issue Welcome][5]][6]
 [![Release Version][7]][8]
-[![Build Status][9]][10]
-[![Support rtty][11]][12]
+![Build Status][9]
+[![Support rtty][10]][11]
 
 [Xterm.js]: https://github.com/xtermjs/xterm.js
 [libev]: http://software.schmorp.de/pkg/libev.html
@@ -28,9 +27,10 @@
 [vue]: https://github.com/vuejs/vue
 [server]: https://github.com/zhaojh329/rttys
 
-![](https://raw.githubusercontent.com/zhaojh329/rtty/doc/rtty.png)
-![](https://raw.githubusercontent.com/zhaojh329/rtty/doc/screen.gif)
+![](https://raw.githubusercontent.com/zhaojh329/rtty/doc/diagram.png)
+![](https://raw.githubusercontent.com/zhaojh329/rtty/doc/terminal.gif)
 ![](https://raw.githubusercontent.com/zhaojh329/rtty/doc/file.gif)
+![](https://raw.githubusercontent.com/zhaojh329/rtty/doc/web.gif)
 
 It is composed of a client and a [server]. The client is written in pure C. The [server] is written in go language
 and the front-end is written in [Vue].
@@ -46,6 +46,7 @@ the world.
 * SSL support: openssl, mbedtls, CyaSSl(wolfssl)
 * Very convenient to upload and download files
 * Access different devices based on device ID
+* Support HTTP Proxy - Access your device's Web
 * Fully-featured terminal based on [Xterm.js]
 * Simple to deployment and easy to use
 

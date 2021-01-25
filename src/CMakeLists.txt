@@ -2,8 +2,8 @@ add_definitions(-O -Wall -Werror --std=gnu99 -D_GNU_SOURCE)
 
 # The version number.
 set(RTTY_VERSION_MAJOR 7)
-set(RTTY_VERSION_MINOR 1)
-set(RTTY_VERSION_PATCH 3)
+set(RTTY_VERSION_MINOR 2)
+set(RTTY_VERSION_PATCH 1)
 
 # Check the third party Libraries
 find_package(Libev REQUIRED)
@@ -77,7 +77,11 @@ else()
     elseif(RTTY_USE_MBEDTLS)
         set(SSL_NAME "MbedTLS(PolarSSL)")
         set(SSL_INC ${MBEDTLS_INCLUDE_DIR})
-        set(SSL_LIB ${MBEDTLS_LIBRARIES} ${ZLIB_LIBRARIES})
+        if(ZLIB_FOUND)
+            set(SSL_LIB ${MBEDTLS_LIBRARIES} ${ZLIB_LIBRARIES})
+        else()
+            set(SSL_LIB ${MBEDTLS_LIBRARIES}) 
+        endif()
         set(RTTY_HAVE_MBEDTLS_CONFIG 1)
     endif()
 
@@ -91,7 +95,7 @@ else()
 endif()
 
 add_executable(rtty main.c utils.c buffer/buffer.c log.c net.c net.h rtty.c rtty.h command.c
-        file.c upfile.c upfile.h downfile.c downfile.h ssl.c ssl.h)
+        file.c upfile.c upfile.h downfile.c downfile.h ssl.c ssl.h web.c)
 target_link_libraries(rtty ${EXTRA_LIBS})
 
 # configure a header file to pass some of the CMake settings to the source code

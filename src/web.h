@@ -22,16 +22,26 @@
  * SOFTWARE.
  */
 
-#ifndef RTTY_NET_H
-#define RTTY_NET_H
+#ifndef _WEB_H
+#define _WEB_H
 
-#include <sys/socket.h>
-#include <ev.h>
+#include "rtty.h"
 
-int tcp_connect(struct ev_loop *loop, const char *host, int port,
-                void (*on_connected)(int sock, void *arg), void *arg);
+struct web_request_ctx {
+    struct list_head head;
+    struct rtty *rtty;
+    struct ev_timer tmr;
+    struct ev_io ior;
+    struct ev_io iow;
+    struct buffer rb;
+    struct buffer wb;
+    ev_tstamp active;
+    int sock;
+    uint8_t addr[18];   /* upstream connection address: [port ip] */
+};
 
-int tcp_connect_sockaddr(struct ev_loop *loop, const struct sockaddr *addr, socklen_t addrlen,
-                void (*on_connected)(int sock, void *arg), void *arg);
+void web_request(struct rtty *rtty, int len);
+void web_request_free(struct web_request_ctx *ctx);
+void web_reqs_free(struct list_head *reqs);
 
 #endif
