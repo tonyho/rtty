@@ -6,19 +6,19 @@
 [4]: https://github.com/zhaojh329/rtty/pulls
 [5]: https://img.shields.io/badge/Issues-welcome-brightgreen.svg?style=plastic
 [6]: https://github.com/zhaojh329/rtty/issues/new
-[7]: https://img.shields.io/badge/release-7.1.3-blue.svg?style=plastic
+[7]: https://img.shields.io/badge/release-7.4.0-blue.svg?style=plastic
 [8]: https://github.com/zhaojh329/rtty/releases
-[9]: https://travis-ci.org/zhaojh329/rtty.svg?branch=master
-[10]: https://travis-ci.org/zhaojh329/rtty
-[11]: https://img.shields.io/badge/Support%20rtty-Donate-blueviolet.svg
-[12]: https://gitee.com/zhaojh329/rtty#project-donate-overview
+[9]: https://github.com/zhaojh329/rtty/workflows/build/badge.svg
+[10]: https://img.shields.io/badge/Support%20rtty-Donate-blueviolet.svg
+[11]: https://paypal.me/zjh329
 
 [![license][1]][2]
 [![PRs Welcome][3]][4]
 [![Issue Welcome][5]][6]
 [![Release Version][7]][8]
-[![Build Status][9]][10]
-[![Support rtty][11]][12]
+![Build Status][9]
+![visitors](https://visitor-badge.laobi.icu/badge?page_id=zhaojh329.rtty)
+[![Support rtty][10]][11]
 
 [Xterm.js]: https://github.com/xtermjs/xterm.js
 [libev]: http://software.schmorp.de/pkg/libev.html
@@ -28,9 +28,10 @@
 [vue]: https://github.com/vuejs/vue
 [server]: https://github.com/zhaojh329/rttys
 
-![](https://raw.githubusercontent.com/zhaojh329/rtty/doc/rtty.png)
-![](https://raw.githubusercontent.com/zhaojh329/rtty/doc/screen.gif)
+![](https://raw.githubusercontent.com/zhaojh329/rtty/doc/diagram.png)
+![](https://raw.githubusercontent.com/zhaojh329/rtty/doc/terminal.gif)
 ![](https://raw.githubusercontent.com/zhaojh329/rtty/doc/file.gif)
+![](https://raw.githubusercontent.com/zhaojh329/rtty/doc/web.gif)
 
 It is composed of a client and a [server]. The client is written in pure C. The [server] is written in go language
 and the front-end is written in [Vue].
@@ -44,8 +45,10 @@ the world.
 * The client is writen in C language, very small, suitable for embedded Linux
 * Execute command remotely in a batch of devices 
 * SSL support: openssl, mbedtls, CyaSSl(wolfssl)
+* mTLS
 * Very convenient to upload and download files
 * Access different devices based on device ID
+* Support HTTP Proxy - Access your device's Web
 * Fully-featured terminal based on [Xterm.js]
 * Simple to deployment and easy to use
 
@@ -93,6 +96,8 @@ Select rtty in menuconfig and compile it
         -d, --description=string Adding a description to the device(Maximum 126 bytes)
         -a                       Auto reconnect to the server
         -s                       SSL on
+        -k, --key                Device key (PEM file) for mTLS\n"
+        -c, --cert               Device certificate (PEM file) for mTLS\n"
         -D                       Run in the background
         -t, --token=string       Authorization token
         -f username              Skip a second login authentication. See man login(1) about the details
@@ -106,6 +111,13 @@ Select rtty in menuconfig and compile it
 Replace the following parameters with your own parameters
 
     sudo rtty -I 'My-device-ID' -h 'your-server' -p 5912 -a -v -d 'My Device Description'
+
+If your rttys is configured with mTLS enabled (device key and certificate required), add the following parameters(Replace the following with valid paths to your own)
+
+    -k /etc/ssl/private/abc.pem -c /etc/ssl/certs/abc.pem
+
+You can generate them e.g. via openssl tool
+    openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:secp521r1 -keyout /tmp/key.pem -out /tmp/cert.pem -days 18262 -nodes -subj "/C=CZ/O=Acme Inc./OU=ACME/CN=ACME-DEV-123"
 
 If your rttys is configured with a token, add the following parameter(Replace the following token with your own)
 

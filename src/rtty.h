@@ -30,6 +30,7 @@
 
 #include "buffer.h"
 #include "file.h"
+#include "list.h"
 
 #define RTTY_MAX_TTY                5
 #define RTTY_HEARTBEAT_INTEVAL      5.0
@@ -42,7 +43,8 @@ enum {
     MSG_TYPE_WINSIZE = 0x04,
     MSG_TYPE_CMD = 0x05,
     MSG_TYPE_HEARTBEAT = 0x06,
-    MSG_TYPE_FILE = 0x07
+    MSG_TYPE_FILE = 0x07,
+    MSG_TYPE_WEB = 0x08
 };
 
 struct rtty;
@@ -67,21 +69,26 @@ struct rtty {
     const char *description;
     const char *username;
     bool ssl_on;
+    const char *ssl_key;      /* path to device key */
+    const char *ssl_cert;     /* path to device cert */
     struct buffer rb;
     struct buffer wb;
     struct ev_io iow;
     struct ev_io ior;
     struct ev_timer tmr;
     struct ev_loop *loop;
+    int ninactive;
     ev_tstamp active;
     ev_tstamp last_heartbeat;
     bool reconnect;
     void *ssl;              /* Context wrap of openssl, wolfssl and mbedtls */
     struct tty *ttys[RTTY_MAX_TTY];
     struct file_context file_context;
+    struct list_head web_reqs;
 };
 
 int rtty_start(struct rtty *rtty);
+void rtty_exit(struct rtty *rtty);
 void rtty_send_msg(struct rtty *rtty, int type, void *data, int len);
 
 #endif

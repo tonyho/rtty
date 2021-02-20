@@ -32,6 +32,7 @@
 #include <shadow.h>
 #include <sys/stat.h>
 #include <math.h>
+#include <pwd.h>
 
 #include "log.h"
 #include "list.h"
@@ -123,14 +124,14 @@ static void task_free(struct task *t)
 
     /* stdout watcher */
     if (t->ioo.fd > 0) {
-        close(t->ioo.fd);
         ev_io_stop(t->rtty->loop, &t->ioo);
+        close(t->ioo.fd);
     }
 
     /* stderr watcher */
     if (t->ioe.fd > 0) {
-        close(t->ioe.fd);
         ev_io_stop(t->rtty->loop, &t->ioe);
+        close(t->ioe.fd);
     }
 
     ev_child_stop(t->rtty->loop, &t->cw);
@@ -140,7 +141,7 @@ static void task_free(struct task *t)
     buffer_free(&t->eb);
 
     for (i = 0; i < t->nparams; i++)
-        free(t->params[i]);
+        free(t->params[i + 1]);
     free(t->params);
 
     free(t);
@@ -264,10 +265,6 @@ static void run_task(struct task *t)
         err = RTTY_CMD_ERR_SYSERR;
         goto ERR;
     } else if (pid == 0) {
-        int arglen = 2 + t->nparams;
-        char **args;
-        int i;
-
         /* Close unused read end */
         close(opipe[0]);
         close(epipe[0]);
@@ -278,16 +275,10 @@ static void run_task(struct task *t)
         close(opipe[1]);
         close(epipe[1]);
 
-        args = calloc(1, sizeof(char *) * arglen);
-        if (!args)
+        if (setuid(t->uid) < 0)
             exit(1);
 
-        args[0] = t->cmd;
-
-        for (i = 0; i < t->nparams; i++)
-            args[i + 1] = t->params[i];
-
-        execv(t->cmd, args);
+        execv(t->cmd, t->params);
     } else {
         /* Close unused write end */
         close(opipe[1]);
@@ -315,7 +306,7 @@ ERR:
     task_free(t);
 }
 
-static void add_task(struct rtty *rtty, const char *token, const char *cmd, const char *data)
+static void add_task(struct rtty *rtty, const char *token, uid_t uid, const char *cmd, const char *data)
 {
     struct task *t;
     int i;
@@ -327,17 +318,20 @@ static void add_task(struct rtty *rtty, const char *token, const char *cmd, cons
     }
 
     t->rtty = rtty;
-
-    t->nparams = *data++;
-    t->params = calloc(t->nparams, sizeof(char *));
-
-    for (i = 0; i < t->nparams; i++) {
-        t->params[i] = strdup(data);
-        data += strlen(t->params[i]) + 1;
-    }
+    t->uid = uid;
 
     strcpy(t->cmd, cmd);
     strcpy(t->token, token);
+
+    t->nparams = *data++;
+    t->params = calloc(t->nparams + 2, sizeof(char *));
+
+    t->params[0] = t->cmd;
+
+    for (i = 0; i < t->nparams; i++) {
+        t->params[i + 1] = strdup(data);
+        data += strlen(t->params[i + 1]) + 1;
+    }
 
     if (nrunning < RTTY_CMD_MAX_RUNNING)
         run_task(t);
@@ -351,11 +345,18 @@ void run_command(struct rtty *rtty, const char *data)
     const char *password = username + strlen(username) + 1;
     const char *cmd = password + strlen(password) + 1;
     const char *token = cmd + strlen(cmd) + 1;
+    struct passwd *pw;
     int err = 0;
 
     data = token + strlen(token) + 1;
 
     if (!username[0] || !login_test(username, password)) {
+        err = RTTY_CMD_ERR_PERMIT;
+        goto ERR;
+    }
+
+    pw = getpwnam(username);
+    if (!pw) {
         err = RTTY_CMD_ERR_PERMIT;
         goto ERR;
     }
@@ -366,7 +367,7 @@ void run_command(struct rtty *rtty, const char *data)
         goto ERR;
     }
 
-    add_task(rtty, token, cmd, data);
+    add_task(rtty, token, pw->pw_uid, cmd, data);
     return;
 
 ERR:

@@ -6,23 +6,23 @@
 [4]: https://github.com/zhaojh329/rtty/pulls
 [5]: https://img.shields.io/badge/提问-欢迎-brightgreen.svg?style=plastic
 [6]: https://github.com/zhaojh329/rtty/issues/new
-[7]: https://img.shields.io/badge/发布版本-7.1.3-blue.svg?style=plastic
+[7]: https://img.shields.io/badge/发布版本-7.4.0-blue.svg?style=plastic
 [8]: https://github.com/zhaojh329/rtty/releases
-[9]: https://travis-ci.org/zhaojh329/rtty.svg?branch=master
-[10]: https://travis-ci.org/zhaojh329/rtty
-[11]: https://img.shields.io/badge/支持rtty-赞助作者-blueviolet.svg
-[12]: https://gitee.com/zhaojh329/rtty#project-donate-overview
-[13]: https://img.shields.io/badge/技术交流群-点击加入：153530783-brightgreen.svg
-[14]: https://jq.qq.com/?_wv=1027&k=5PKxbTV
+[9]: https://github.com/zhaojh329/rtty/workflows/build/badge.svg
+[10]: https://img.shields.io/badge/支持rtty-赞助作者-blueviolet.svg
+[11]: #贡献代码
+[12]: https://img.shields.io/badge/技术交流群-点击加入：153530783-brightgreen.svg
+[13]: https://jq.qq.com/?_wv=1027&k=5PKxbTV
 
 
 [![license][1]][2]
 [![PRs Welcome][3]][4]
 [![Issue Welcome][5]][6]
 [![Release Version][7]][8]
-[![Build Status][9]][10]
-[![Support rtty][11]][12]
-[![Chinese Chat][13]][14]
+![Build Status][9]
+![visitors](https://visitor-badge.laobi.icu/badge?page_id=zhaojh329.rtty)
+[![Support rtty][10]][11]
+[![Chinese Chat][12]][13]
 
 [Xterm.js]: https://github.com/xtermjs/xterm.js
 [libev]: http://software.schmorp.de/pkg/libev.html
@@ -32,9 +32,10 @@
 [vue]: https://github.com/vuejs/vue
 [服务端]: https://github.com/zhaojh329/rttys
 
-![](https://raw.githubusercontent.com/zhaojh329/rtty/doc/rtty.png)
-![](https://raw.githubusercontent.com/zhaojh329/rtty/doc/screen.gif)
+![](https://raw.githubusercontent.com/zhaojh329/rtty/doc/diagram.png)
+![](https://raw.githubusercontent.com/zhaojh329/rtty/doc/terminal.gif)
 ![](https://raw.githubusercontent.com/zhaojh329/rtty/doc/file.gif)
+![](https://raw.githubusercontent.com/zhaojh329/rtty/doc/web.gif)
 
 它由客户端和[服务端]组成。客户端采用纯C实现。[服务端]采用GO语言实现，前端界面采用[vue]实现。
 
@@ -46,8 +47,10 @@ rtty非常适合远程维护您的或者您的公司的部署在全球各地的�
 * 客户端C语言实现，非常小，适合嵌入式Linux
 * 远程批量执行命令
 * 支持SSL: openssl, mbedtls, CyaSSl(wolfssl)
+* SSL 双向认证(mTLS)
 * 非常方便的上传和下载文件
 * 根据设备ID访问不同的设备
+* 支持 HTTP 代理 - 访问您的设备的 Web
 * 基于[Xterm.js]的全功能终端
 * 部署简单，使用方便
 

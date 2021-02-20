@@ -26,10 +26,12 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <stdlib.h>
+#include <sys/sysinfo.h>
 
 #include "ssl.h"
 #include "net.h"
 #include "log.h"
+#include "web.h"
 #include "file.h"
 #include "rtty.h"
 #include "list.h"
@@ -53,6 +55,8 @@ static void del_tty(struct tty *tty)
     kill(tty->pid, SIGTERM);
 
     rtty->ttys[tty->sid] = NULL;
+
+    file_context_reset(&rtty->file_context);
 
     log_info("delete tty: %d\n", tty->sid);
 
@@ -207,7 +211,7 @@ static void write_data_to_tty(struct rtty *rtty, int sid, int len)
 static void set_tty_winsize(struct rtty *rtty, int sid)
 {
     struct tty *tty = find_tty(rtty, sid);
-    struct winsize size;
+    struct winsize size = {};
 
     if (!tty) {
         log_err("non-existent sid: %d\n", sid);
@@ -221,8 +225,11 @@ static void set_tty_winsize(struct rtty *rtty, int sid)
         log_err("ioctl TIOCSWINSZ failed: %s\n", strerror(errno));
 }
 
-static void rtty_exit(struct rtty *rtty)
+void rtty_exit(struct rtty *rtty)
 {
+    if (rtty->sock < 0)
+        return;
+
     ev_io_stop(rtty->loop, &rtty->ior);
     ev_io_stop(rtty->loop, &rtty->iow);
 
@@ -237,8 +244,12 @@ static void rtty_exit(struct rtty *rtty)
     rtty_ssl_free(rtty->ssl);
 #endif
 
-    close(rtty->sock);
-    rtty->sock = -1;
+    if (rtty->sock > 0) {
+        close(rtty->sock);
+        rtty->sock = -1;
+    }
+
+    web_reqs_free(&rtty->web_reqs);
 
     if (!rtty->reconnect)
         ev_break(rtty->loop, EVBREAK_ALL);
@@ -272,7 +283,7 @@ static void rtty_register(struct rtty *rtty)
     ev_io_start(rtty->loop, &rtty->iow);
 }
 
-static void parse_msg(struct rtty *rtty)
+static int parse_msg(struct rtty *rtty)
 {
     struct buffer *rb = &rtty->rb;
     int msgtype;
@@ -280,11 +291,11 @@ static void parse_msg(struct rtty *rtty)
 
     while (true) {
         if (buffer_length(rb) < 3)
-            return;
+            return 0;
 
         msglen = buffer_get_u16be(rb, 1);
         if (buffer_length(rb) < msglen + 3)
-            return;
+            return 0;
 
         msgtype = buffer_pull_u8(rb);
         buffer_pull_u16(rb);
@@ -294,9 +305,8 @@ static void parse_msg(struct rtty *rtty)
             if (buffer_pull_u8(rb)) {
                 char errs[128] = "";
                 buffer_pull(rb, errs, msglen - 1);
-                rtty_exit(rtty);
                 log_err("register fail: %s\n", errs);
-                return;
+                return -1;
             }
             buffer_pull(rb, NULL, msglen - 1);
             log_info("register success\n");
@@ -327,13 +337,17 @@ static void parse_msg(struct rtty *rtty)
             break;
 
         case MSG_TYPE_FILE:
-            parse_file_msg(&rtty->file_context, buffer_pull_u8(rb), rb, msglen - 1);
+            parse_file_msg(&rtty->file_context, rb, msglen);
+            break;
+
+        case MSG_TYPE_WEB:
+            web_request(rtty, msglen);
             break;
 
         default:
             log_err("invalid message type: %d\n", msgtype);
-            rtty_exit(rtty);
-            return;
+            buffer_pull(rb, NULL, msglen);
+            break;
         }
     }
 }
@@ -355,15 +369,21 @@ static void on_net_read(struct ev_loop *loop, struct ev_io *w, int revents)
         return;
     }
 
+    rtty->ninactive = 0;
     rtty->active = ev_now(loop);
 
-    parse_msg(rtty);
+    if (parse_msg(rtty))
+        goto done;
 
     if (eof) {
         log_info("socket closed by server\n");
-        rtty_exit(rtty);
-        return;
+        goto done;
     }
+
+    return;
+
+done:
+    rtty_exit(rtty);
 }
 
 static void on_net_write(struct ev_loop *loop, struct ev_io *w, int revents)
@@ -400,6 +420,7 @@ static void on_net_connected(int sock, void *arg)
     log_info("connected to server\n");
 
     rtty->sock = sock;
+    rtty->ninactive = 0;
 
     ev_io_init(&rtty->ior, on_net_read, sock, EV_READ);
     ev_io_start(rtty->loop, &rtty->ior);
@@ -408,7 +429,7 @@ static void on_net_connected(int sock, void *arg)
 
     if (rtty->ssl_on) {
 #if (RTTY_SSL_SUPPORT)
-        rtty_ssl_init((struct rtty_ssl_ctx **)&rtty->ssl, sock, rtty->host);
+        rtty_ssl_init((struct rtty_ssl_ctx **)&rtty->ssl, sock, rtty->host, rtty->ssl_key, rtty->ssl_cert);
 #endif
     }
 
@@ -431,13 +452,26 @@ static void rtty_timer_cb(struct ev_loop *loop, struct ev_timer *w, int revents)
 
     if (now - rtty->active > RTTY_HEARTBEAT_INTEVAL * 3 / 2) {
         log_err("Inactive too long time\n");
-        rtty_exit(rtty);
-        return;
+        if (rtty->ninactive++ > 1) {
+            log_err("Inactive 3 times, now exit\n");
+            rtty_exit(rtty);
+            return;
+        }
+        rtty->active = now;
     }
 
     if (now - rtty->last_heartbeat > RTTY_HEARTBEAT_INTEVAL - 1) {
+        struct sysinfo info = {};
+
         rtty->last_heartbeat = now;
-        rtty_send_msg(rtty, MSG_TYPE_HEARTBEAT, NULL, 0);
+
+        sysinfo(&info);
+
+        buffer_put_u8(&rtty->wb, MSG_TYPE_HEARTBEAT);
+        buffer_put_u16be(&rtty->wb, 16);
+        buffer_put_u32be(&rtty->wb, info.uptime);
+        buffer_put_zero(&rtty->wb, 12);  /* pad */
+        ev_io_start(loop, &rtty->iow);
     }
 }
 
@@ -472,7 +506,9 @@ int rtty_start(struct rtty *rtty)
             && !rtty->reconnect)
         return -1;
 
-    start_file_service(&rtty->file_context);
+    rtty->file_context.fd = -1;
+
+    INIT_LIST_HEAD(&rtty->web_reqs);
 
     rtty->active = ev_now(rtty->loop);
 

@@ -30,8 +30,6 @@
 #include "log.h"
 #include "rtty.h"
 #include "config.h"
-#include "upfile.h"
-#include "downfile.h"
 
 enum {
     LONG_OPT_HELP = 1
@@ -51,6 +49,8 @@ static struct option long_options[] = {
     {"port",        required_argument, NULL, 'p'},
     {"description", required_argument, NULL, 'd'},
     {"token",       required_argument, NULL, 't'},
+    {"key",         required_argument, NULL, 'k'},
+    {"cert",        required_argument, NULL, 'c'},
     {"verbose",     no_argument,       NULL, 'v'},
     {"version",     no_argument,       NULL, 'V'},
     {"help",        no_argument,       NULL, LONG_OPT_HELP},
@@ -67,6 +67,8 @@ static void usage(const char *prog)
             "      -d, --description=string Adding a description to the device(Maximum 126 bytes)\n"
             "      -a                       Auto reconnect to the server\n"
             "      -s                       SSL on\n"
+            "      -k, --key                Device key (PEM file) for mTLS\n"
+            "      -c, --cert               Device certificate (PEM file) for mTLS\n"
             "      -D                       Run in the background\n"
             "      -t, --token=string       Authorization token\n"
             "      -f username              Skip a second login authentication. See man login(1) about the details\n"
@@ -95,7 +97,7 @@ int main(int argc, char **argv)
     int c;
 
     while (true) {
-        c = getopt_long(argc, argv, "I:h:p:d:asDt:f:RS:vV", long_options, &option_index);
+        c = getopt_long(argc, argv, "I:h:p:d:ask:c:Dt:f:RS:vV", long_options, &option_index);
         if (c == -1)
             break;
 
@@ -122,6 +124,12 @@ int main(int argc, char **argv)
         case 's':
             rtty.ssl_on = true;
             break;
+        case 'k':
+            rtty.ssl_key = optarg;
+            break;
+        case 'c':
+            rtty.ssl_cert = optarg;
+            break;
         case 'D':
             background = true;
             break;
@@ -132,10 +140,10 @@ int main(int argc, char **argv)
             rtty.username = optarg;
             break;
         case 'R':
-            download_file();
+            request_transfer_file('R', NULL);
             return 0;
         case 'S':
-            upload_file(optarg);
+            request_transfer_file('S', optarg);
             return 0;
         case 'v':
             verbose = true;
@@ -151,6 +159,8 @@ int main(int argc, char **argv)
             break;
         }
     }
+
+    signal(SIGPIPE, SIG_IGN);
 
     if (background && daemon(0, 0))
         log_err("Can't run in the background: %s\n", strerror(errno));
@@ -172,6 +182,10 @@ int main(int argc, char **argv)
         return -1;
 
     ev_run(loop, 0);
+
+    rtty_exit(&rtty);
+
+    ev_loop_destroy(loop);
 
     return 0;
 }

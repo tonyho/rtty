@@ -28,6 +28,7 @@
 #include <stdint.h>
 #include <string.h>
 #include <ctype.h>
+#include <unistd.h>
 
 #include "utils.h"
 
@@ -153,4 +154,71 @@ struct mntent *find_mount_point(const char *name)
     endmntent(mtab_fp);
 
     return ment;
+}
+
+/*
+ *  getcwd_pid does not append a null byte to buf.  It will (silently) truncate the contents (to
+ *  a length of bufsiz characters), in case the buffer is too small to hold all of the contents.
+ */
+ssize_t getcwd_by_pid(pid_t pid, char *buf, size_t bufsiz)
+{
+    char link[128];
+
+    sprintf(link, "/proc/%d/cwd", pid);
+
+    return readlink(link, buf, bufsiz);
+}
+
+bool getuid_by_pid(pid_t pid, uid_t *uid)
+{
+    char status[128];
+    char line[128];
+    int i = 9;
+    FILE *fp;
+
+    sprintf(status, "/proc/%d/status", pid);
+
+    fp = fopen(status, "r");
+    if (!fp)
+        return false;
+
+    while (i-- > 0) {
+        if (!fgets(line, sizeof(line), fp)) {
+            fclose(fp);
+            return false;
+        }
+    }
+
+    fclose(fp);
+    
+    sscanf(line, "Uid:\t%u", uid);
+    
+    return true;
+}
+
+bool getgid_by_pid(pid_t pid, gid_t *gid)
+{
+    char status[128];
+    char line[128];
+    int i = 10;
+    FILE *fp;
+
+    sprintf(status, "/proc/%d/status", pid);
+
+    fp = fopen(status, "r");
+    if (!fp)
+        return false;
+
+    while (i-- > 0) {
+        if (!fgets(line, sizeof(line), fp)) {
+            fclose(fp);
+            return false;
+        }
+    }
+
+    fclose(fp);
+    
+    sscanf(line, "Gid:\t%u", gid);
+    
+    return true;
 }

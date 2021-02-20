@@ -22,9 +22,26 @@
  * SOFTWARE.
  */
 
-#ifndef RTTY_UPFILE_H_
-#define RTTY_UPFILE_H_
+#ifndef _WEB_H
+#define _WEB_H
 
-void upload_file(const char *path);
+#include "rtty.h"
+
+struct web_request_ctx {
+    struct list_head head;
+    struct rtty *rtty;
+    struct ev_timer tmr;
+    struct ev_io ior;
+    struct ev_io iow;
+    struct buffer rb;
+    struct buffer wb;
+    ev_tstamp active;
+    int sock;
+    uint8_t addr[18];   /* upstream connection address: [port ip] */
+};
+
+void web_request(struct rtty *rtty, int len);
+void web_request_free(struct web_request_ctx *ctx);
+void web_reqs_free(struct list_head *reqs);
 
 #endif
